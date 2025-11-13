@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="./react1.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script src="https://unpkg.com/nipplejs@0.10.1/dist/nipplejs.js"></script>
+  <script src="https://unpkg.com/kaboom@2000.2.10/dist/kaboom.js"></script>
+  <script src="https://unpkg.com/react@17.0.2/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://unpkg.com/playroomkit/multiplayer.umd.js"></script>
+  <script type="text/babel">
+    const { useEffect } = React;
+    const {
+      useMultiplayerState,
+      insertCoin, 
+      myPlayer,
+      usePlayersList
+    } = Playroom;
+    window._USETEMPSTORAGE = true;
+
+    const randomNumBetween = (min, max) => Math.floor(Math.random() * (max - min + 1) + min);
+    const randomRotations = Array(20).fill(0).map(()=> `rotate(${randomNumBetween(-5,5)}deg) translateX(${randomNumBetween(-10,10)}px)`);
+
+    const App = () => {
+      const players = usePlayersList();
+      const [selections, setSelections] = useMultiplayerState("selections", {});
+      const [gameResult, setGameResult] = useMultiplayerState("gameResult", null);
+      
+      const myPlayerId = myPlayer().id;
+      const hasSelected = selections[myPlayerId] !== undefined;
+      const allPlayersSelected = players.length >= 2 && players.every(p => selections[p.id] !== undefined);
+      
+      // Check for winner when selections change
+      useEffect(() => {
+        if (players.length >= 2 && !gameResult) {
+          const allSelected = players.every(p => selections[p.id] !== undefined);
+          
+          if (allSelected) {
+            // Determine winner
+            const player1 = players[0];
+            const player2 = players[1];
+            const choice1 = selections[player1.id];
+            const choice2 = selections[player2.id];
+            
+            let result = "";
+            if (choice1 === choice2) {
+              result = "It's a tie!";
+            } else {
+              const wins = {
+                "⛰️": "✂️", // Rock beats Scissors
+                "✂️": "🧻", // Scissors beats Paper
+                "🧻": "⛰️"  // Paper beats Rock
+              };
+              
+              if (wins[choice1] === choice2) {
+                result = `${player1.getProfile().name} wins!`;
+              } else {
+                result = `${player2.getProfile().name} wins!`;
+              }
+            }
+            
+            setGameResult(result);
+            
+            // Reset after 3 seconds
+            setTimeout(() => {
+              setSelections({});
+              setGameResult(null);
+            }, 3000);
+          }
+        }
+      }, [selections, players]);
+      
+      const handleSelection = (emoji) => {
+        if (hasSelected || allPlayersSelected) return;
+        setSelections({ ...selections, [myPlayerId]: emoji });
+      };
+      
+      const opponent = players.find(p => p.id !== myPlayerId);
+      const mySelection = selections[myPlayerId];
+      const opponentSelection = opponent ? selections[opponent.id] : null;
+      
+      return (
+        <div className="App" style={{backgroundColor: myPlayer().getProfile().color.hexString}}>
+          {gameResult && (
+            <div className="result-message">
+              <h1>{gameResult}</h1>
+            </div>
+          )}
+          
+          {/* Opponent card reveal section */}
+          {players.length >= 2 && (
+            <div className="cards-reveal-section">
+              <div className="player-card-area">
+                <div className="player-label">You</div>
+                {mySelection ? (
+                  <div className="revealed-card">
+                    <span className="card">
+                      <span className="avatar">
+                        <img src={myPlayer().getProfile().photo} />
+                      </span>
+                      {mySelection}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="hidden-card">
+                    <span className="card-back">?</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="vs-divider">VS</div>
+              
+              <div className="player-card-area">
+                <div className="player-label">
+                  {opponent ? opponent.getProfile().name : "Opponent"}
+                </div>
+                {allPlayersSelected && opponentSelection ? (
+                  <div className="revealed-card">
+                    <span className="card">
+                      <span className="avatar">
+                        <img src={opponent.getProfile().photo} />
+                      </span>
+                      {opponentSelection}
+                    </span>
+                  </div>
+                ) : opponentSelection ? (
+                  <div className="hidden-card">
+                    <span className="card-back">☑️</span>
+                  </div>
+                ) : (
+                  <div className="hidden-card">
+                    <span className="card-back">?</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div className="emoji-button-bar">
+            <a 
+              className={`emoji-button ${hasSelected || allPlayersSelected ? 'disabled' : ''}`}
+              onClick={() => handleSelection("⛰️")}
+            >
+              <span role="img">⛰️</span>
+            </a>
+            <a 
+              className={`emoji-button ${hasSelected || allPlayersSelected ? 'disabled' : ''}`}
+              onClick={() => handleSelection("🧻")}
+            >
+              <span role="img">🧻</span>
+            </a>
+            <a 
+              className={`emoji-button ${hasSelected || allPlayersSelected ? 'disabled' : ''}`}
+              onClick={() => handleSelection("✂️")}
+            >
+              <span role="img">✂️</span>
+            </a>
+          </div>
+          
+          {!hasSelected && !allPlayersSelected && (
+            <div className="waiting-message">
+              {players.length < 2 ? "Waiting for another player..." : "Choose your move!"}
+            </div>
+          )}
+          
+          {hasSelected && !allPlayersSelected && (
+            <div className="waiting-message">
+              Waiting for other player to choose...
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const root = document.querySelector('#root');
+    insertCoin().then(()=>{
+      ReactDOM.render(<App />, root);
+    });
+  </script>
+</body>
+</html>
