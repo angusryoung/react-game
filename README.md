@@ -12,9 +12,3 @@ Still a work in progress, not sure what happens if more then 2 people try to joi
 3. Select your move: ⛰️ Rock, 🧻 Paper, or ✂️ Scissors
 4. Wait for your opponent to make their choice
 5. See who wins! The game automatically resets after 3 seconds
-
-## 🚀 Getting Started
-
-### Local Development
-
-Simply open `index.html` in your web browser. No build process or server required!
